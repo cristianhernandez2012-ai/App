@@ -1,0 +1,58 @@
+from fastapi import FastAPI, HTTPException
+import httpx
+import time
+
+app = FastAPI(title="Colombia METAR/TAF API")
+
+NOAA_BASE = "https://aviationweather.gov/api/data"
+CACHE_TTL_SECONDS = 60
+
+_cache = {}  # key -> (ts, value)
+
+def cache_get(key: str):
+    item = _cache.get(key)
+    if not item:
+        return None
+    ts, val = item
+    if time.time() - ts > CACHE_TTL_SECONDS:
+        _cache.pop(key, None)
+        return None
+    return val
+
+def cache_set(key: str, val):
+    _cache[key] = (time.time(), val)
+
+async def fetch_text(url: str, params: dict):
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(url, params=params)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail=f"Upstream error {r.status_code}")
+        return r.text
+
+@app.get("/wx/{icao}")
+async def wx(icao: str):
+    icao = icao.strip().upper()
+    if len(icao) != 4:
+        raise HTTPException(status_code=400, detail="ICAO must be 4 letters, e.g. SKBO")
+
+    cache_key = f"wx:{icao}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
+
+    metar_url = f"{NOAA_BASE}/metar"
+    taf_url   = f"{NOAA_BASE}/taf"
+
+    # ids puede aceptar lista separada por coma; aquí solo uno
+    metar = await fetch_text(metar_url, {"ids": icao})
+    taf   = await fetch_text(taf_url, {"ids": icao})
+
+    payload = {
+        "icao": icao,
+        "metar_raw": metar.strip(),
+        "taf_raw": taf.strip(),
+        "source": "aviationweather.gov"
+    }
+    cache_set(cache_key, payload)
+    return payload
+
