@@ -13,4 +13,6 @@ Aplicación web estática para consultar reportes METAR de aeropuertos en Colomb
 
 - https://aviationweather.gov/api/data/metar
 - https://aviationweather.gov/api/data/taf
+- https://tgftp.nws.noaa.gov/data/observations/metar/stations
+- https://tgftp.nws.noaa.gov/data/forecasts/taf/stations
 - https://meteorologia.aerocivil.gov.co/wxwatch/table?list_id=4&ceiling_minimum=40000&visibility_minimum=170000

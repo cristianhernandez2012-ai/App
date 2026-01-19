@@ -8,6 +8,9 @@ const watchRefresh = document.getElementById("watch-refresh");
 
 const METAR_BASE = "https://aviationweather.gov/api/data/metar";
 const TAF_BASE = "https://aviationweather.gov/api/data/taf";
+const NOAA_METAR_BASE =
+  "https://tgftp.nws.noaa.gov/data/observations/metar/stations";
+const NOAA_TAF_BASE = "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations";
 const WATCH_URL =
   "https://meteorologia.aerocivil.gov.co/wxwatch/table?list_id=4&ceiling_minimum=40000&visibility_minimum=170000";
 
@@ -58,6 +61,42 @@ const renderResults = (items, tafItems) => {
     `;
     results.appendChild(card);
   });
+};
+
+const mergeByStation = (primary, fallback) => {
+  const map = primary.reduce((acc, item) => {
+    if (item.station) {
+      acc[item.station] = item;
+    }
+    return acc;
+  }, {});
+
+  fallback.forEach((item) => {
+    if (item?.station && !map[item.station]) {
+      map[item.station] = item;
+    }
+  });
+
+  return Object.values(map);
+};
+
+const parseNoaaMetarText = (station, text) => {
+  const lines = text.trim().split("\n").map((line) => line.trim());
+  const rawText = lines[1] || lines[0];
+  return {
+    station,
+    observation_time: lines[0] || null,
+    raw_text: rawText || null,
+  };
+};
+
+const parseNoaaTafText = (station, text) => {
+  const lines = text.trim().split("\n").map((line) => line.trim());
+  const rawText = lines.slice(1).join(" ");
+  return {
+    station,
+    raw_text: rawText || lines[0] || null,
+  };
 };
 
 const parseWatchTable = (htmlText) => {
@@ -161,6 +200,34 @@ const fetchTaf = async (stations) => {
   return response.json();
 };
 
+const fetchNoaaMetar = async (stations) => {
+  const responses = await Promise.all(
+    stations.map(async (station) => {
+      const response = await fetch(`${NOAA_METAR_BASE}/${station}.TXT`);
+      if (!response.ok) {
+        return null;
+      }
+      const text = await response.text();
+      return parseNoaaMetarText(station, text);
+    })
+  );
+  return responses.filter(Boolean);
+};
+
+const fetchNoaaTaf = async (stations) => {
+  const responses = await Promise.all(
+    stations.map(async (station) => {
+      const response = await fetch(`${NOAA_TAF_BASE}/${station}.TXT`);
+      if (!response.ok) {
+        return null;
+      }
+      const text = await response.text();
+      return parseNoaaTafText(station, text);
+    })
+  );
+  return responses.filter(Boolean);
+};
+
 const fetchWatchTable = async () => {
   const response = await fetch(WATCH_URL);
   if (!response.ok) {
@@ -197,11 +264,39 @@ form.addEventListener("submit", async (event) => {
   results.innerHTML = "";
 
   try {
-    const [metarData, tafData] = await Promise.all([
-      fetchMetar(stations),
-      fetchTaf(stations),
-    ]);
-    renderStatus(`Resultados para ${stations.join(", ")}.`, "success");
+    let metarData = [];
+    let tafData = [];
+    let usedNoaa = false;
+
+    try {
+      metarData = await fetchMetar(stations);
+    } catch (error) {
+      metarData = [];
+    }
+
+    try {
+      tafData = await fetchTaf(stations);
+    } catch (error) {
+      tafData = [];
+    }
+
+    if (metarData.length < stations.length) {
+      const noaaMetar = await fetchNoaaMetar(stations);
+      metarData = mergeByStation(metarData, noaaMetar);
+      usedNoaa = usedNoaa || noaaMetar.length > 0;
+    }
+
+    if (tafData.length < stations.length) {
+      const noaaTaf = await fetchNoaaTaf(stations);
+      tafData = mergeByStation(tafData, noaaTaf);
+      usedNoaa = usedNoaa || noaaTaf.length > 0;
+    }
+
+    const sourceNote = usedNoaa ? " (con respaldo NOAA)" : "";
+    renderStatus(
+      `Resultados para ${stations.join(", ")}.${sourceNote}`,
+      "success"
+    );
     renderResults(metarData, tafData);
   } catch (error) {
     renderStatus(error.message, "warning");
