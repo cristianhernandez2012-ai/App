@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>METAR Colombia</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app__header">
+        <p class="app__eyebrow">Aplicación METAR Colombia</p>
+        <h1>Consulta METAR en tiempo real</h1>
+        <p class="app__subtitle">
+          Ingresa uno o varios códigos ICAO colombianos (por ejemplo: SKBO, SKRG, SKSM) y obtén
+          el último reporte METAR disponible.
+        </p>
+      </header>
+
+      <section class="app__panel">
+        <form id="metar-form" class="form">
+          <label class="form__label" for="icao-input">Códigos ICAO</label>
+          <div class="form__row">
+            <input
+              id="icao-input"
+              name="icao"
+              type="text"
+              placeholder="SKBO, SKRG"
+              autocomplete="off"
+              required
+            />
+            <button class="button" type="submit">Consultar</button>
+          </div>
+          <p class="form__hint">Separar múltiples códigos con comas o espacios. Obtén METAR y TAF.</p>
+        </form>
+      </section>
+
+      <section class="app__results">
+        <div class="status" id="status">Listo para consultar.</div>
+        <div class="cards" id="results"></div>
+      </section>
+
+      <section class="app__watch">
+        <div class="app__watch-header">
+          <div>
+            <p class="app__eyebrow">WX Watch Aerocivil</p>
+            <h2>Alertas meteorológicas vigentes</h2>
+            <p class="app__subtitle">
+              Consulta la tabla oficial de WX Watch para Colombia y revisa techos y visibilidad
+              reportados en aeropuertos con alerta activa.
+            </p>
+          </div>
+          <button class="button button--secondary" id="watch-refresh" type="button">
+            Actualizar WX Watch
+          </button>
+        </div>
+        <div class="status status--info" id="watch-status">
+          Lista de alertas disponible al cargar.
+        </div>
+        <div class="watch-grid" id="watch-results"></div>
+      </section>
+    </main>
+
+    <footer class="app__footer">
+      <p>
+        Fuente de datos: Aviation Weather Center · METAR actualizado cada hora aproximadamente.
+      </p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
